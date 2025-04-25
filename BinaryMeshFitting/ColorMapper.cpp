@@ -1,16 +1,14 @@
 #include "PCH.h"
 #include "ColorMapper.hpp"
+#include <algorithm>
 
 using namespace glm;
 
-ColorMapper::ColorMapper()
-{
-	noise_context = FastNoiseSIMD::NewFastNoiseSIMD();
+ColorMapper::ColorMapper() : noise(std::make_unique<noise::PerlinNoise>()) {
+	color_map.resize(256);
 }
 
-ColorMapper::~ColorMapper()
-{
-}
+ColorMapper::~ColorMapper() = default;
 
 void ColorMapper::generate_colors(SmartContainer<DualVertex>& verts)
 {
@@ -55,66 +53,53 @@ void ColorMapper::map_noise(SmartContainer<DualVertex>& verts, float* noise)
 	for (int i = 0; i < count; i++)
 	{
 		float n = noise[i] * 4.0f;
-		verts[i].color = hsl_to_rgb((n + 1.0f) * 0.5f * 360.0f, 0.72f, 1.0f);
+		verts[i].color = get_color(verts[i].p, n);
 	}
 }
 
-glm::vec3 ColorMapper::hsl_to_rgb(float h, float s, float v)
+math::vec3f ColorMapper::get_color(const math::vec3f& pos, float value)
 {
-	float hh, p, q, t, ff;
-	int i;
-	float r = 0, g = 0, b = 0;
-
-	if (s <= 0.0f) {       // < is bogus, just shuts up warnings
-		r = v;
-		g = v;
-		b = v;
-		return vec3(r, g, b);
+	// Generate noise value for color variation
+	float noise = noise_context.noise(pos.x * 0.1f, pos.y * 0.1f, pos.z * 0.1f);
+	
+	// Map value to color using noise for variation
+	float h = (value + noise) * 0.5f; // Hue based on value and noise
+	float s = 0.8f; // Saturation
+	float l = 0.6f; // Lightness
+	
+	// Convert HSL to RGB
+	float c = (1.0f - std::abs(2.0f * l - 1.0f)) * s;
+	float x = c * (1.0f - std::abs(std::fmod(h * 6.0f, 2.0f) - 1.0f));
+	float m = l - c * 0.5f;
+	
+	math::vec3f rgb;
+	if (h < 1.0f/6.0f) {
+		rgb = math::vec3f(c, x, 0.0f);
+	} else if (h < 2.0f/6.0f) {
+		rgb = math::vec3f(x, c, 0.0f);
+	} else if (h < 3.0f/6.0f) {
+		rgb = math::vec3f(0.0f, c, x);
+	} else if (h < 4.0f/6.0f) {
+		rgb = math::vec3f(0.0f, x, c);
+	} else if (h < 5.0f/6.0f) {
+		rgb = math::vec3f(x, 0.0f, c);
+	} else {
+		rgb = math::vec3f(c, 0.0f, x);
 	}
-	hh = h;
-	//if (hh < 0.0f) hh += 360.0f;
-	hh = fmodf(fabsf(hh), 360.0f);
-	hh /= 60.0f;
-	i = (int)hh;
-	ff = hh - i;
-	p = v * (1.0f - s);
-	q = v * (1.0f - (s * ff));
-	t = v * (1.0f - (s * (1.0f - ff)));
+	
+	return rgb + math::vec3f(m, m, m);
+}
 
-	switch (i) {
-	case 0:
-		r = v;
-		g = t;
-		b = p;
-		break;
-	case 1:
-		r = q;
-		g = v;
-		b = p;
-		break;
-	case 2:
-		r = p;
-		g = v;
-		b = t;
-		break;
-
-	case 3:
-		r = p;
-		g = q;
-		b = v;
-		break;
-	case 4:
-		r = t;
-		g = p;
-		b = v;
-		break;
-	case 5:
-	default:
-		r = v;
-		g = p;
-		b = q;
-		break;
+void ColorMapper::generateColorMap(int count, float* out) {
+	for(int i = 0; i < count; i++) {
+		float t = static_cast<float>(i) / count;
+		float noise_value = noise->octaveNoise(t * 10.0f, 0.0f, 0.0f, 4, 0.5f);
+		out[i] = noise_value;
 	}
+}
 
-	return vec3(r, g, b);
+float ColorMapper::getColor(float value) const {
+	int index = static_cast<int>(value * (color_map.size() - 1));
+	index = std::clamp(index, 0, static_cast<int>(color_map.size() - 1));
+	return color_map[index];
 }

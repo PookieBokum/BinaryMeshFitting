@@ -15,6 +15,7 @@
 #include <list>
 #include <stack>
 #include <mutex>
+#include <memory>
 
 struct WorldProperties
 {
@@ -58,6 +59,9 @@ public:
 	std::atomic<bool> generator_shutdown;
 	std::mutex chunk_mutex;
 
+	std::unique_ptr<NoiseSampler> noise_sampler;
+	WorldOctreeNode* root;
+
 	WorldOctree();
 	~WorldOctree();
 
@@ -76,5 +80,12 @@ public:
 	void init_updates(glm::vec3 focus_pos);
 	void process_from_render_thread();
 
+	void generateTerrain(WorldOctreeNode* node);
+	void generateCaves(WorldOctreeNode* node);
+
+	WorldOctreeNode* getRoot() const { return root; }
+	void setRoot(WorldOctreeNode* newRoot) { root = newRoot; }
+
 private:
+	void processDensityField(WorldOctreeNode* node, float* density);
 };

@@ -1,22 +1,19 @@
 #pragma once
 
-#include <FastNoiseSIMD.h>
-#include "SmartContainer.hpp"
-#include "Vertices.hpp"
+#include "noise.hpp"
+#include <memory>
+#include <vector>
 
 class ColorMapper
 {
-public:
-	FastNoiseSIMD* noise_context;
+private:
+	std::unique_ptr<noise::PerlinNoise> noise;
+	std::vector<float> color_map;
 
+public:
 	ColorMapper();
 	~ColorMapper();
 
-	void generate_colors(SmartContainer<DualVertex>& verts);
-	
-private:
-	void get_noise(SmartContainer<DualVertex>& verts, float** out);
-	void map_noise(SmartContainer<DualVertex>& verts, float* noise);
-
-	__forceinline glm::vec3 hsl_to_rgb(float h, float s, float l);
+	void generateColorMap(int count, float* out);
+	float getColor(float value) const;
 };

@@ -2,35 +2,23 @@
 
 #include <functional>
 #include <glm/glm.hpp>
-#include <FastNoiseSIMD.h>
-#include <string>
 
-class SamplerProperties
-{
-public:
-	int thread_id;
+using SamplerValueFunction = std::function<float(float, const glm::vec3&)>;
+using SamplerGradientFunction = std::function<glm::vec3(float, const glm::vec3&, float)>;
+using SamplerBlockFunction = std::function<void(float, const glm::vec3&, const glm::ivec3&, float, void**, float*, int, int, void*)>;
 
-	inline SamplerProperties() : thread_id(0) {}
-	inline SamplerProperties(int _thread_id) : thread_id(_thread_id) {}
-	virtual ~SamplerProperties() {};
-
+struct SamplerProperties {
+	int octaves;
+	float persistence;
+	float lacunarity;
+	float scale;
 };
 
-//typedef std::function<float(const float world_size, const glm::vec3& p)> SamplerValueFunction;
-typedef const float(*SamplerValueFunction)(const float world_size, const glm::vec3& p);
-typedef std::function<void(const float world_size, const glm::vec3& p, const glm::ivec3& size, const float scale, void** out, FastNoiseVectorSet* vectorset_out, float* dest_noise, int offset, int stride, SamplerProperties* properties)> SamplerBlockFunction;
-typedef std::function<glm::vec3(const float world_size, const glm::vec3& p, float h)> SamplerGradientFunction;
-
-struct Sampler
-{
-	float world_size;
-	SamplerValueFunction value;
-	SamplerBlockFunction block;
-	SamplerGradientFunction gradient;
-	FastNoiseSIMD* noise_samplers[8];
-
-	inline Sampler() { for (int i = 0; i < 8; i++) noise_samplers[i] = 0; }
-	inline virtual ~Sampler() {}
+struct Sampler {
+	SamplerValueFunction value_function;
+	SamplerGradientFunction gradient_function;
+	SamplerBlockFunction block_function;
+	SamplerProperties properties;
 };
 
 inline std::string get_simd_text()

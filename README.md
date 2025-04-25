@@ -1,57 +1,102 @@
 # BinaryMeshFitting
 
-Yet another attempt at making a fast massive level-of-detail voxel engine, but this time with usable results!
+A voxel engine that uses binary mesh fitting to generate terrain. This is a fork of the original project that has been modified to work without external dependencies.
 
-This is the successor to [PushingVoxelsForward](https://github.com/Lin20/PushingVoxelsForward).
+## Features
 
-## Building and Running
+* Binary mesh fitting for terrain generation
+* Perlin noise-based terrain generation
+* Custom math library (replacing GLM)
+* Custom noise implementation (replacing FastNoiseSIMD)
+* Efficient chunk-based rendering
+* Dynamic level of detail
 
-You can use CMake or the provided 64-bit Visual Studio 2017 solution.
+## Building
 
-### Dependencies
+### Prerequisites
 
-* [GLEW](http://glew.sourceforge.net/)
-* [GLFW](http://www.glfw.org/)
-* [Vc](https://github.com/VcDevel/Vc) (currently not actually used)
-* [FastNoiseSIMD](https://github.com/Auburns/FastNoiseSIMD)
+* CMake 3.10 or higher
+* C++17 compatible compiler
+* OpenGL 3.3 or higher
+* GLEW
+* GLFW
 
-### CMake
+### Building on Windows
 
-So far only 64-bit building is tested on Windows using Visual Studio 2017.
-
-The custom Find\* CMake modules are rather minimal:
-
-* [FindGLM.cmake](cmake/Modules/FindGLM.cmake)
-* [FindGLFW.cmake](cmake/Modules/FindGLFW.cmake)
-* [FindFastNoiseSIMD.cmake](cmake/Modules/FindFastNoiseSIMD.cmake)
-
-A slightly modified version of [cmake-precompiled-header](https://github.com/larsch/cmake-precompiled-header) is used.
-
-#### [GLFW](http://www.glfw.org/) & [FastNoiseSIMD](https://github.com/Auburns/FastNoiseSIMD)
-
-To support multi-configuration generators (e.g. Visual Studio 2017),
-FindGLFW and FindFastNoiseSIMD expect separate "lib/Debug" and "lib/Release" directories
-or a "d"-postfix for the debug library.
-
-#### [Vc](https://github.com/VcDevel/Vc)
-
-You may also want to change your
-[VcConfig](https://github.com/VcDevel/Vc/blob/eef0f1f0588a06fa28cfd0e8810472db5e610ebe/cmake/VcConfig.cmake.in)
-file from
-
-```CMake
-find_library(Vc_LIBRARIES Vc PATHS "${Vc_LIB_DIR}" NO_DEFAULT_PATH)
+1. Install CMake and Visual Studio 2019 or later
+2. Install GLEW and GLFW
+3. Clone this repository
+4. Create a build directory:
+```bash
+mkdir build
+cd build
+```
+5. Configure with CMake:
+```bash
+cmake ..
+```
+6. Build the project:
+```bash
+cmake --build . --config Release
 ```
 
-to something like
+### Building on Linux
 
-```CMake
-find_library(Vc_LIBRARY_DEBUG Vcd PATHS "${Vc_LIB_DIR}" NO_DEFAULT_PATH)
-find_library(Vc_LIBRARY_RELEASE Vc PATHS "${Vc_LIB_DIR}" NO_DEFAULT_PATH)
-set(Vc_LIBRARIES debug ${Vc_LIBRARY_DEBUG} optimized ${Vc_LIBRARY_RELEASE})
+1. Install required packages:
+```bash
+sudo apt-get install cmake libglew-dev libglfw3-dev
+```
+2. Clone this repository
+3. Create a build directory:
+```bash
+mkdir build
+cd build
+```
+4. Configure with CMake:
+```bash
+cmake ..
+```
+5. Build the project:
+```bash
+make
 ```
 
-to enable multi-configuration support.
+## Running
+
+After building, you can run the executable from the build directory:
+
+```bash
+./BinaryMeshFitting
+```
+
+## Controls
+
+* WASD - Move
+* Space - Jump
+* Left Shift - Sprint
+* Mouse - Look around
+* ESC - Quit
+
+## Project Structure
+
+The project has been modified to work without external dependencies:
+
+* `math/` - Custom math library replacing GLM
+* `noise/` - Custom noise implementation replacing FastNoiseSIMD
+* `BinaryMeshFitting/` - Main application code
+* `cmake/` - CMake configuration files
+
+## Performance
+
+The engine has been optimized for performance:
+* Custom math library for efficient vector operations
+* Efficient noise generation using our own Perlin noise implementation
+* Memory pooling and multithreading for chunk generation
+* Optimized chunk extraction using binary mesh fitting
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Media
 
@@ -98,7 +143,7 @@ Speed is the biggest priority, and as such it's gone through many stages of opti
 * Ju, Tao, Frank Losasso, Scott Schaefer, and Joe Warren. "Dual contouring of hermite data." In ACM transactions on graphics (TOG), vol. 21, no. 3, pp. 339-346. ACM, 2002.
 * Schaefer, Scott, Tao Ju, and Joe Warren. "Manifold dual contouring." IEEE Transactions on Visualization and Computer Graphics 13, no. 3 (2007): 610-619.
 * Ohtake, Yutaka, and Alexander G. Belyaev. "Dual/primal mesh optimization for polygonized implicit surfaces." In Proceedings of the seventh ACM symposium on Solid modeling and applications, pp. 171-178. ACM, 2002.
-* Nielson, Gregory M.. “Dual marching cubes.” IEEE Visualization 2004 (2004): 489-496.
+* Nielson, Gregory M.. "Dual marching cubes." IEEE Visualization 2004 (2004): 489-496.
 
 ## Self-published article(s) describing techniques used
 

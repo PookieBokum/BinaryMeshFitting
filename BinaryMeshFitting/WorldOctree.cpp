@@ -63,6 +63,8 @@ WorldOctree::WorldOctree()
 	cout << "-Size Mod:\t" << properties.size_modifier << endl;
 	cout << "-Max Level:\t" << properties.max_level << endl;
 	cout << "-Min Level:\t" << properties.min_level << endl << endl;
+
+	noise_sampler = std::make_unique<NoiseSampler>();
 }
 
 void destroy_world_nodes(MemoryPool<WorldOctreeNode>* pool, MemoryPool<DMCChunk>* chunk_pool, WorldOctreeNode* n)
@@ -381,5 +383,46 @@ void WorldOctree::process_from_render_thread()
 		watcher.generator.stitcher.upload();
 		watcher.generator.stitcher.stage = STITCHING_STAGES_READY;
 	}
+}
+
+void WorldOctree::generateTerrain(WorldOctreeNode* node) {
+	if (!node) return;
+	
+	int size = node->size;
+	float* density = new float[size * size * size];
+	
+	// Sample terrain using our noise system
+	noise_sampler->sampleTerrain(0, density, size, size, size,
+							1.0f, 1.0f, 1.0f,
+							node->position.x, node->position.y, node->position.z);
+	
+	// Process the density field and generate mesh
+	processDensityField(node, density);
+	
+	delete[] density;
+}
+
+void WorldOctree::generateCaves(WorldOctreeNode* node) {
+	if (!node) return;
+	
+	int size = node->size;
+	float* density = new float[size * size * size];
+	
+	// Sample caves using our noise system
+	noise_sampler->sampleCaves(0, density, size, size, size,
+							1.0f, 1.0f, 1.0f,
+							node->position.x, node->position.y, node->position.z);
+	
+	// Process the density field and generate mesh
+	processDensityField(node, density);
+	
+	delete[] density;
+}
+
+void WorldOctree::processDensityField(WorldOctreeNode* node, float* density) {
+	// Implementation of marching cubes or other mesh generation algorithm
+	// This is where you'd convert the density field into a mesh
+	// For now, we'll just store the density values
+	node->density = density;
 }
 

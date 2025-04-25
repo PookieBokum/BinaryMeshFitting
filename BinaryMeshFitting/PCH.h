@@ -1,15 +1,28 @@
-// Pre-compiled headers go here...
+#pragma once
+
+// Standard library includes
+#include <vector>
+#include <string>
+#include <memory>
+#include <unordered_map>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <cmath>
+#include <array>
+
+// Project includes
+#include "Math/Vector.h"
+#include "Math/Matrix.h"
+#include "Math/Transform.h"
+#include "Renderer/GL.h"
+
+#include "BinaryMeshFitting.h"
+#include "math.hpp"
+#include "noise.hpp"
 
 #define QEF_INCLUDE_IMPL
 #include "qef_simd.h"
 
-#define GLM_FORCE_NO_CTOR_INIT
-#define GLM_FORCE_INLINE
-#include <glm/glm.hpp>
-
 #define PI 3.1415926535897932384626433832795f
-
-#include "GUI/imgui.h"
-#include "GUI/imgui_impl_glfw_gl3.h"
-
-#include <Vc/Vc>

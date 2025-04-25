@@ -1,141 +1,38 @@
 #pragma once
 
-#include "Sampler.hpp"
+#include "noise.hpp"
+#include <memory>
+#include <vector>
+#include <thread>
+#include <mutex>
 
-namespace NoiseSamplers
-{
-	class NoiseSamplerProperties : public SamplerProperties
-	{
-	public:
-		int level;
-		float g_scale;
-		float height;
-		int octaves;
-		float amp;
-		float frequency;
-		float gain;
-		FastNoiseSIMD::NoiseType noise_type;
-		FastNoiseSIMD::FractalType fractal_type;
-
-		inline NoiseSamplerProperties() : SamplerProperties() {}
-		inline ~NoiseSamplerProperties() override {}
-	};
-
-	const float noise3d(const float resolution, const glm::vec3& p);
-	const void noise3d_block(const Sampler& sampler, const float resolution, const glm::vec3& p, const glm::ivec3& size, const float scale, void** out, FastNoiseVectorSet* vectorset_out, float* dest_noise, int offset, int stride, SamplerProperties* properties);
-
-	const void terrain2d_block(const Sampler& sampler, const float resolution, const glm::vec3& p, const glm::ivec3& size, const float scale, void** out, FastNoiseVectorSet* vectorset_out, float* dest_noise, int offset, int stride, SamplerProperties* properties);
-	const void terrain2d_pert_block(const Sampler & sampler, const float resolution, const glm::vec3& p, const glm::ivec3& size, const float scale, void ** out, FastNoiseVectorSet * vectorset_out, float* dest_noise, int offset, int stride, SamplerProperties* properties);
-
-	const void terrain3d_block(const Sampler& sampler, const float resolution, const glm::vec3& p, const glm::ivec3& size, const float scale, void** out, FastNoiseVectorSet* vectorset_out, float* dest_noise, int offset, int stride, SamplerProperties* properties);
-	const void terrain3d_pert_block(const Sampler& sampler, const float resolution, const glm::vec3& p, const glm::ivec3& size, const float scale, void** out, FastNoiseVectorSet* vectorset_out, float* dest_noise, int offset, int stride, SamplerProperties* properties);
-
-	const void windy3d_block(const Sampler& sampler, const float resolution, const glm::vec3& p, const glm::ivec3& size, const float scale, void** out, FastNoiseVectorSet* vectorset_out, float* dest_noise, int offset, int stride, SamplerProperties* properties);
-
-	inline glm::vec3 implicit_gradient(SamplerValueFunction f, const float resolution, const glm::vec3& p, float h = 0.01f)
-	{
-		using namespace glm;
-		float dxp = f(resolution, vec3(p.x + h, p.y, p.z));
-		float dxm = f(resolution, vec3(p.x - h, p.y, p.z));
-		float dyp = f(resolution, vec3(p.x, p.y + h, p.z));
-		float dym = f(resolution, vec3(p.x, p.y - h, p.z));
-		float dzp = f(resolution, vec3(p.x, p.y, p.z + h));
-		float dzm = f(resolution, vec3(p.x, p.y, p.z - h));
-
-		return vec3(dxp - dxm, dyp - dym, dzp - dzm);
-	}
-
-	inline void implicit_block(const SamplerValueFunction& f, const float resolution, const glm::vec3& p, const glm::ivec3& size, const float scale, float** out, FastNoiseVectorSet** vectorset_out)
-	{
-		if (!out)
-			return;
-		if (!(*out))
-			*out = (float*)malloc(size.x * size.y * size.z * sizeof(float));
-
-		glm::vec3 dxyz;
-		for (int x = 0; x < size.x; x++)
-		{
-			dxyz.x = p.x + (float)x * scale;
-			for (int y = 0; y < size.y; y++)
-			{
-				dxyz.y = p.y + (float)y * scale;
-				for (int z = 0; z < size.z; z++)
-				{
-					dxyz.z = p.z + (float)z * scale;
-					(*out)[x * size.x * size.x + y * size.y + z] = f(resolution, dxyz);
-				}
-			}
+class NoiseSampler {
+private:
+	std::vector<std::unique_ptr<noise::PerlinNoise>> perlin_noise;
+	std::vector<std::unique_ptr<noise::WorleyNoise>> worley_noise;
+	std::mutex mutex;
+	
+public:
+	NoiseSampler(int num_threads = std::thread::hardware_concurrency()) {
+		for(int i = 0; i < num_threads; i++) {
+			perlin_noise.push_back(std::make_unique<noise::PerlinNoise>(i));
+			worley_noise.push_back(std::make_unique<noise::WorleyNoise>(i));
 		}
 	}
-
-	inline Sampler create_sampler(const SamplerValueFunction& f)
-	{
-		using namespace std::placeholders;
-		Sampler s;
-		s.value = f;
-		s.gradient = std::bind(implicit_gradient, f, _1, _2, _3);
-		for (int i = 0; i < 8; i++)
-			s.noise_samplers[i] = FastNoiseSIMD::NewFastNoiseSIMD();
-		return s;
+	
+	float samplePerlin(int thread_index, float x, float y, float z, int octaves = 4, float persistence = 0.5f) {
+		std::lock_guard<std::mutex> lock(mutex);
+		return perlin_noise[thread_index]->octaveNoise(x, y, z, octaves, persistence);
 	}
-
-	inline void create_sampler_noise3d(Sampler* s)
-	{
-		using namespace std::placeholders;
-		s->value = noise3d;
-		s->gradient = std::bind(implicit_gradient, noise3d, _1, _2, _3);
-		for (int i = 0; i < 8; i++)
-			s->noise_samplers[i] = FastNoiseSIMD::NewFastNoiseSIMD();
-		s->block = std::bind(noise3d_block, *s, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10);
+	
+	float sampleWorley(int thread_index, float x, float y, float z) {
+		std::lock_guard<std::mutex> lock(mutex);
+		return worley_noise[thread_index]->noise(x, y, z);
 	}
-
-	inline void create_sampler_terrain_2d(Sampler* s)
-	{
-		using namespace std::placeholders;
-		s->value = noise3d;
-		s->gradient = std::bind(implicit_gradient, noise3d, _1, _2, _3);
-		for (int i = 0; i < 8; i++)
-			s->noise_samplers[i] = FastNoiseSIMD::NewFastNoiseSIMD();
-		s->block = std::bind(terrain2d_block, *s, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10);
+	
+	float sampleCombined(int thread_index, float x, float y, float z) {
+		float perlin = samplePerlin(thread_index, x, y, z);
+		float worley = sampleWorley(thread_index, x, y, z);
+		return (perlin + worley) * 0.5f;
 	}
-
-	inline void create_sampler_terrain_pert_2d(Sampler* s)
-	{
-		using namespace std::placeholders;
-		s->value = noise3d;
-		s->gradient = std::bind(implicit_gradient, noise3d, _1, _2, _3);
-		for (int i = 0; i < 8; i++)
-			s->noise_samplers[i] = FastNoiseSIMD::NewFastNoiseSIMD();
-		s->block = std::bind(terrain2d_pert_block, *s, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10);
-	}
-
-	inline void create_sampler_terrain_3d(Sampler* s)
-	{
-		using namespace std::placeholders;
-		s->value = noise3d;
-		s->gradient = std::bind(implicit_gradient, noise3d, _1, _2, _3);
-		for (int i = 0; i < 8; i++)
-			s->noise_samplers[i] = FastNoiseSIMD::NewFastNoiseSIMD();
-		s->block = std::bind(terrain3d_block, *s, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10);
-	}
-
-	inline void create_sampler_terrain_pert_3d(Sampler* s)
-	{
-		using namespace std::placeholders;
-		s->value = noise3d;
-		s->gradient = std::bind(implicit_gradient, noise3d, _1, _2, _3);
-		for (int i = 0; i < 8; i++)
-			s->noise_samplers[i] = FastNoiseSIMD::NewFastNoiseSIMD();
-		s->block = std::bind(terrain3d_pert_block, *s, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10);
-	}
-
-	inline void create_sampler_windy_3d(Sampler* s)
-	{
-		using namespace std::placeholders;
-		s->value = noise3d;
-		s->gradient = std::bind(implicit_gradient, noise3d, _1, _2, _3);
-		for (int i = 0; i < 8; i++)
-			s->noise_samplers[i] = FastNoiseSIMD::NewFastNoiseSIMD();
-		s->block = std::bind(windy3d_block, *s, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10);
-	}
-}
+};
